@@ -300,31 +300,6 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 ---
 
-![Recommendation](https://img.shields.io/badge/Recommendation-Summary-00A36C?style=for-the-badge)
-
-### ![Primary](https://img.shields.io/badge/Primary-Approach_A-00A36C?style=flat-square) SP-per-Tenant + ABAC
-
-If the SP count can be managed (and hundreds is manageable with automation):
-
-- This is the Databricks-recommended architecture
-- GenierAILS provides it as infrastructure-as-code
-- Hardest security boundary with least custom code
-
-### ![Alternative](https://img.shields.io/badge/Alternative-Approach_B/B2-0078D4?style=flat-square) OBO + Row Filters + User Provisioning
-
-If tenant identities can be provisioned via SCIM/AIM:
-
-- More scalable for large sub-tenant counts
-- B2 (Databricks App) is simplest -- no custom OAuth, just token forwarding
-- B (custom app with OBO) gives more flexibility if the app must live outside Databricks
-- Row filters with mapping table provide dynamic, maintainable isolation
-
-### ![Supplementary](https://img.shields.io/badge/Supplementary-Approach_D-orange?style=flat-square) additional_context
-
-Regardless of the primary approach, use `additional_context` in Genie API calls to guide SQL generation toward tenant-relevant queries. This improves result quality but must never be relied on for security.
-
----
-
 ![Matrix](https://img.shields.io/badge/Decision-Matrix-blueviolet?style=for-the-badge)
 
 | Criteria                        | A: SP+ABAC      | B: OBO+Filters | B2: DBX App+OBO | C: Session Vars | D: Context Param |
@@ -352,14 +327,14 @@ Regardless of the primary approach, use `additional_context` in Genie API calls 
 
 ![References](https://img.shields.io/badge/Key-References-grey?style=for-the-badge)
 
-- Josh Rosenberg, "Embedding Genie API for a Multi-Tenant Application" (Medium, March 2026)
-- Databricks Blog, "Access Genie Everywhere" -- OBO/U2M/M2M OAuth patterns
-- Databricks Docs, "Row filters and column masks" -- UC row filter mechanics
-- Databricks Docs, "ABAC in Unity Catalog" -- attribute-based access control
-- Databricks Docs, "Use the Genie Spaces API" -- conversation API reference
-- Databricks Docs, "Configure authorization in a Databricks app" -- OBO token forwarding
-- Databricks Community, "Implement fine-grained permissions for Databricks Apps with OBO authorization"
-- Genie Ready FAQ (internal) -- governance and data access section
-- GenierAILS (github.com/databricks-solutions/genierails) -- ABAC governance as code
-- Databricks Community, "Building MultiTenant Architecture on Databricks Platform"
-- Data+AI Summit, "Multi-Tenant Architecture at Scale: Fewer Workspaces, Less Admin, No Silos"
+- [Embedding Genie API for a Multi-Tenant Application](https://medium.com/dbsql-sme-engineering/embedding-genie-api-for-a-multi-tenant-application-d307bfbfc89b) -- Josh Rosenberg, March 2026
+- [Access Genie Everywhere](https://www.databricks.com/blog/access-genie-everywhere) -- OBO/U2M/M2M OAuth patterns
+- [Row filters and column masks](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) -- UC row filter mechanics
+- [ABAC in Unity Catalog](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/) -- attribute-based access control
+- [Use the Genie Spaces API](https://docs.databricks.com/aws/en/genie/conversation-api) -- conversation API reference
+- [Configure authorization in a Databricks app](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth) -- OBO token forwarding
+- [Fine-grained permissions for Databricks Apps with OBO](https://community.databricks.com/t5/technical-blog/implement-fine-grained-permissions-for-databricks-apps-with-on/ba-p/116884) -- Databricks Community
+- [GenierAILS](https://github.com/databricks-solutions/genierails) -- ABAC governance for Genie Spaces as code
+- [Building MultiTenant Architecture on Databricks](https://community.databricks.com/t5/community-articles/building-multitenant-architecture-on-databricks-platform/td-p/125937) -- Databricks Community
+- [Row and Column Level Security GA](https://www.databricks.com/blog/announcing-general-availability-row-and-column-level-security-databricks-unity-catalog) -- Databricks Blog
+- [Best Practices for Genie Spaces](https://www.databricks.com/blog/data-dialogue-best-practices-guide-building-high-performing-genie-spaces) -- Databricks Blog
