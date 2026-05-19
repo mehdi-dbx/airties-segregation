@@ -1,5 +1,23 @@
 # Multi-Tenant Data Segregation for Databricks Genie
 
+## Table of Contents
+
+- [Problem Statement](#problem-statement)
+- [Research Sources](#research-sources)
+- [High-Level Architecture](#high-level-architecture)
+- [Approaches Evaluated](#approaches-evaluated)
+  - [A -- SP-per-Tenant + ABAC (Recommended)](#approach-a)
+  - [B -- OBO OAuth + Row Filters](#approach-b)
+  - [B2 -- Databricks App + Native OBO (Simplest)](#approach-b2)
+  - [C -- additional_context Param (UX Only)](#approach-c)
+- [Decision Matrix](#decision-matrix)
+- [Next Steps](#next-steps)
+- [Key References](#key-references)
+
+---
+
+<a id="problem-statement"></a>
+
 ![Problem](https://img.shields.io/badge/Problem-Statement-red?style=for-the-badge)
 
 AirTies operates a multi-tenant Databricks workspace where all Unity Catalog tables contain a `tenant_id` column. Tenants and their sub-tenants (potentially hundreds) query data through Databricks Genie via an application layer.
@@ -23,6 +41,8 @@ The requirement is to guarantee that every Genie response only returns data belo
 
 ---
 
+<a id="research-sources"></a>
+
 ![Sources](https://img.shields.io/badge/Research-Sources-grey?style=for-the-badge)
 
 - Databricks official documentation (AWS, Azure, GCP)
@@ -35,6 +55,8 @@ The requirement is to guarantee that every Genie response only returns data belo
 - Databricks community: multi-tenant architecture articles and session variable discussions
 
 ---
+
+<a id="high-level-architecture"></a>
 
 ![Architecture](https://img.shields.io/badge/High--Level-Architecture-0078D4?style=for-the-badge)
 
@@ -51,9 +73,13 @@ The core question is: **how does the Application Layer establish tenant identity
 
 ---
 
+<a id="approaches-evaluated"></a>
+
 ![Approaches](https://img.shields.io/badge/Approaches-Evaluated-blueviolet?style=for-the-badge)
 
 ---
+
+<a id="approach-a"></a>
 
 ### ![A](https://img.shields.io/badge/A-SP--per--Tenant_+_ABAC-00A36C?style=for-the-badge) ![Recommended](https://img.shields.io/badge/Databricks-Recommended-gold?style=flat-square)
 
@@ -95,6 +121,8 @@ flowchart LR
 **Assessment:** This is the gold standard. The concern about "hundreds of SPs" should be re-evaluated -- SP creation/management can be fully automated via Databricks Account API. Hundreds is well within operational limits. **If this is feasible, stop here.**
 
 ---
+
+<a id="approach-b"></a>
 
 ### ![B](https://img.shields.io/badge/B-OBO_OAuth_+_Row_Filters-0078D4?style=for-the-badge)
 
@@ -180,6 +208,8 @@ SET ROW FILTER governance.security.filter_by_tenant ON (ext_tenant_id);
 
 ---
 
+<a id="approach-b2"></a>
+
 ### ![B2](https://img.shields.io/badge/B2-Databricks_App_+_Native_OBO-0078D4?style=for-the-badge) ![Simplest](https://img.shields.io/badge/Simplest-Implementation-green?style=flat-square)
 
 A variant of Approach B that eliminates custom OAuth plumbing by using Databricks Apps' built-in user authorization.
@@ -243,6 +273,8 @@ def handle_query(request):
 
 ---
 
+<a id="approach-c"></a>
+
 ### ![C](https://img.shields.io/badge/C-additional__context_Param-orange?style=for-the-badge) ![UX Only](https://img.shields.io/badge/UX_Only-Not_Security-red?style=flat-square)
 
 ```mermaid
@@ -263,6 +295,8 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 ---
 
+<a id="decision-matrix"></a>
+
 ![Matrix](https://img.shields.io/badge/Decision-Matrix-blueviolet?style=for-the-badge)
 
 | Criteria                        | A: SP+ABAC      | B: OBO+Filters | B2: DBX App+OBO | C: Context Param |
@@ -277,6 +311,8 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 ---
 
+<a id="next-steps"></a>
+
 ![Next Steps](https://img.shields.io/badge/Next-Steps-blue?style=for-the-badge)
 
 1. **Validate SP scalability** -- Confirm whether AirTies can automate SP lifecycle for their tenant count. If yes, go with Approach A.
@@ -287,6 +323,8 @@ The Genie API accepts an `additional_context` field per message. You could injec
 6. **Prototype** the chosen approach against the AirTies workspace with a test tenant.
 
 ---
+
+<a id="key-references"></a>
 
 ![References](https://img.shields.io/badge/Key-References-grey?style=for-the-badge)
 
