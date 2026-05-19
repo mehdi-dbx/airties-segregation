@@ -243,44 +243,7 @@ def handle_query(request):
 
 ---
 
-### ![C](https://img.shields.io/badge/C-Session_Variables-orange?style=for-the-badge) ![Not Viable](https://img.shields.io/badge/Not_Viable-for_Genie-red?style=flat-square)
-
-```mermaid
-flowchart LR
-    T[Tenant User] --> App
-    App -->|"Single SP token"| WH["SQL Warehouse\nSET VAR tenant_id = 'X'"]
-    WH --> RF["Row Filters\nreads session.tenant_id"]
-    RF --> Tables[(Tables)]
-    App -.-x|"No session var\ninjection"| Genie[Genie API]
-
-    style Genie stroke-dasharray: 5 5,color:#999
-```
-
-**How it works:**
-
-- Single SP authenticates all requests
-- Before each query, the app runs `SET VAR tenant_id = '<value>'`
-- Row filter functions read the session variable
-- Filter applies at query time
-
-```sql
-DECLARE VARIABLE IF NOT EXISTS tenant_id STRING DEFAULT 'NONE';
-SET VAR tenant_id = 'acme-corp';
-
--- Row filter reads session variable
-CREATE FUNCTION filter_by_session_tenant(tid STRING)
-RETURN (tid = session.tenant_id);
-```
-
-**Critical problem: Genie does not support session variable injection.** The Genie API has no mechanism to run `SET VAR` before the generated query executes. This approach works with the Statement Execution API but **NOT with Genie**.
-
-**Additional risk:** Session variables are mutable. Any SQL in the session can overwrite the variable. This is not a security boundary -- it is an application convention. Databricks lacks a tamper-proof session context (unlike Oracle's `SYS_CONTEXT` or SQL Server's `SESSION_CONTEXT`).
-
-**Assessment:** Not viable for Genie. Could supplement other approaches for direct SQL execution paths.
-
----
-
-### ![D](https://img.shields.io/badge/D-additional__context_Param-orange?style=for-the-badge) ![UX Only](https://img.shields.io/badge/UX_Only-Not_Security-red?style=flat-square)
+### ![C](https://img.shields.io/badge/C-additional__context_Param-orange?style=for-the-badge) ![UX Only](https://img.shields.io/badge/UX_Only-Not_Security-red?style=flat-square)
 
 ```mermaid
 flowchart LR
@@ -302,15 +265,15 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 ![Matrix](https://img.shields.io/badge/Decision-Matrix-blueviolet?style=for-the-badge)
 
-| Criteria                        | A: SP+ABAC      | B: OBO+Filters | B2: DBX App+OBO | C: Session Vars | D: Context Param |
-| ------------------------------- | ---------------- | --------------- | ---------------- | --------------- | ---------------- |
-| Hard security boundary          | Yes              | Yes             | Yes              | No              | No               |
-| Genie NL answers tenant-scoped  | Yes              | Yes             | Yes              | N/A             | No               |
-| Scales to hundreds of tenants   | With automation  | Yes             | Yes              | N/A             | Yes              |
-| Custom code required            | Minimal          | Moderate        | Minimal          | Moderate        | Minimal          |
-| Databricks-recommended          | Yes              | Partially       | Yes              | No              | No               |
-| Works with Genie                | Yes              | Yes             | Yes              | No              | Partially        |
-| App can live outside Databricks | Yes              | Yes             | No               | Yes             | Yes              |
+| Criteria                        | A: SP+ABAC      | B: OBO+Filters | B2: DBX App+OBO | C: Context Param |
+| ------------------------------- | ---------------- | --------------- | ---------------- | ---------------- |
+| Hard security boundary          | Yes              | Yes             | Yes              | No               |
+| Genie NL answers tenant-scoped  | Yes              | Yes             | Yes              | No               |
+| Scales to hundreds of tenants   | With automation  | Yes             | Yes              | Yes              |
+| Custom code required            | Minimal          | Moderate        | Minimal          | Minimal          |
+| Databricks-recommended          | Yes              | Partially       | Yes              | No               |
+| Works with Genie                | Yes              | Yes             | Yes              | Partially        |
+| App can live outside Databricks | Yes              | Yes             | No               | Yes              |
 
 ---
 
