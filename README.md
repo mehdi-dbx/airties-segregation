@@ -37,7 +37,7 @@ The requirement is to guarantee that every Genie response only returns data belo
 | One service principal per tenant                        | Hundreds of sub-tenants make this unmanageable         |
 | One Genie room per tenant with pre-filtered views       | Does not scale with tenant volume                      |
 | Unity Catalog row filters with `current_user()`         | Single SP means all tenants share the same identity    |
-| Genie room instructions ("always filter by tenant_id")  | Relies on LLM compliance -- not a security boundary    |
+| Genie room instructions ("always filter by tenant_id")  | Relies on LLM compliance -- [not a security boundary](https://docs.google.com/document/d/15f98p8ygW9sjflSU6eMe-IdN8QL_g8bZvkQu1imNC2s/edit) |
 
 ---
 
@@ -45,14 +45,14 @@ The requirement is to guarantee that every Genie response only returns data belo
 
 ![Sources](https://img.shields.io/badge/Research-Sources-grey?style=for-the-badge)
 
-- Databricks official documentation (AWS, Azure, GCP)
-- Josh Rosenberg, "Embedding Genie API for a Multi-Tenant Application" (Medium, March 2026)
-- Genie Ready FAQ (internal Databricks document)
-- GenierAILS open-source project (github.com/databricks-solutions/genierails)
-- Databricks blog: "Access Genie Everywhere" -- OBO/U2M/M2M OAuth patterns
-- Unity Catalog ABAC and row filter documentation
-- Databricks Apps OBO user authorization documentation
-- Databricks community: multi-tenant architecture articles and session variable discussions
+- Databricks official documentation ([AWS](https://docs.databricks.com/aws/en/), [Azure](https://learn.microsoft.com/en-us/azure/databricks/), [GCP](https://docs.databricks.com/gcp/en/))
+- Josh Rosenberg, ["Embedding Genie API for a Multi-Tenant Application"](https://medium.com/dbsql-sme-engineering/embedding-genie-api-for-a-multi-tenant-application-d307bfbfc89b) (Medium, March 2026)
+- [Genie Ready FAQ](https://docs.google.com/document/d/15f98p8ygW9sjflSU6eMe-IdN8QL_g8bZvkQu1imNC2s/edit) (internal Databricks document)
+- [GenierAILS](https://github.com/databricks-solutions/genierails) open-source project
+- Databricks blog: ["Access Genie Everywhere"](https://www.databricks.com/blog/access-genie-everywhere) -- OBO/U2M/M2M OAuth patterns
+- [Unity Catalog ABAC](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/) and [row filter](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) documentation
+- [Databricks Apps OBO user authorization](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth) documentation
+- Databricks community: [multi-tenant architecture](https://community.databricks.com/t5/community-articles/building-multitenant-architecture-on-databricks-platform/td-p/125937) articles
 
 ---
 
@@ -83,7 +83,7 @@ The core question is: **how does the Application Layer establish tenant identity
 
 ### ![A](https://img.shields.io/badge/A-SP--per--Tenant_+_ABAC-00A36C?style=for-the-badge) ![Recommended](https://img.shields.io/badge/Databricks-Recommended-gold?style=flat-square)
 
-This is the pattern recommended by Databricks engineering (Josh Rosenberg article, March 2026).
+This is the pattern recommended by Databricks engineering ([Josh Rosenberg, March 2026](https://medium.com/dbsql-sme-engineering/embedding-genie-api-for-a-multi-tenant-application-d307bfbfc89b)).
 
 ```mermaid
 flowchart LR
@@ -100,7 +100,7 @@ flowchart LR
 
 - Each tenant gets a dedicated service principal
 - Genie API calls use that SP's OAuth M2M credentials
-- Unity Catalog ABAC row filters evaluate `current_user()` at query time
+- Unity Catalog [ABAC row filters](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/) evaluate `current_user()` at query time
 - Since each SP is a distinct identity, ABAC automatically restricts data to that tenant's rows
 - No application-level filtering needed -- Databricks handles isolation at the SQL execution layer
 
@@ -109,8 +109,8 @@ flowchart LR
 - Databricks-recommended architecture
 - Hard security boundary at the platform level
 - Genie works fully: NL answers, SQL results, text summaries -- all tenant-scoped
-- ABAC policies inherit down the object hierarchy (catalog -> schema -> table)
-- GenierAILS provides this as code (ACLs, instructions, benchmarks, CI/CD)
+- [ABAC policies inherit](https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/) down the object hierarchy (catalog -> schema -> table)
+- [GenierAILS](https://github.com/databricks-solutions/genierails) provides this as code (ACLs, instructions, benchmarks, CI/CD)
 
 **Cons:**
 
@@ -141,9 +141,9 @@ flowchart LR
 
 - Provision each tenant/sub-tenant as a Databricks **user** (not SP) via SCIM or AIM
 - Create a mapping table: `user_email` -> `tenant_id`
-- Create row filter functions using `session_user()` that look up the mapping table
-- The application uses On-Behalf-Of (OBO) OAuth to call Genie API with per-user tokens
-- Genie executes queries with the end user's data credentials
+- Create [row filter functions](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/) using `session_user()` that look up the mapping table
+- The application uses [On-Behalf-Of (OBO) OAuth](https://www.databricks.com/blog/access-genie-everywhere) to call Genie API with per-user tokens
+- Genie executes queries with the [end user's data credentials](https://docs.databricks.com/aws/en/genie/set-up)
 - Row filters fire automatically -- every result is tenant-scoped
 
 **Row filter example:**
@@ -195,7 +195,7 @@ SET ROW FILTER governance.security.filter_by_tenant ON (ext_tenant_id);
 - Genie works fully (NL answers + SQL + results all tenant-scoped)
 - Users scale better than SPs -- SCIM/AIM handles thousands
 - Mapping table makes tenant assignment dynamic (update rows, not infra)
-- Row filter hybrid model: definer's rights on mapping table, invoker's identity for `session_user()`
+- [Row filter hybrid model](https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/manually-apply): definer's rights on mapping table, invoker's identity for `session_user()`
 
 **Cons:**
 
@@ -212,7 +212,7 @@ SET ROW FILTER governance.security.filter_by_tenant ON (ext_tenant_id);
 
 ### ![B2](https://img.shields.io/badge/B2-Databricks_App_+_Native_OBO-0078D4?style=for-the-badge) ![Simplest](https://img.shields.io/badge/Simplest-Implementation-green?style=flat-square)
 
-A variant of Approach B that eliminates custom OAuth plumbing by using Databricks Apps' built-in user authorization.
+A variant of Approach B that eliminates custom OAuth plumbing by using Databricks Apps' [built-in user authorization](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth).
 
 ```mermaid
 flowchart LR
@@ -226,7 +226,7 @@ flowchart LR
 **How it works:**
 
 - Deploy the tenant-facing application as a **Databricks App**
-- Enable **user authorization** on the app -- Databricks automatically forwards the logged-in user's access token via HTTP headers
+- Enable **user authorization** on the app -- Databricks automatically [forwards the logged-in user's access token](https://community.databricks.com/t5/technical-blog/implement-fine-grained-permissions-for-databricks-apps-with-on/ba-p/116884) via HTTP headers
 - The app extracts the token and creates a user-scoped WorkspaceClient to call Genie
 - Row filters on tables enforce tenant isolation via `session_user()`
 - No custom OAuth registration, no token exchange, no refresh token management
@@ -289,7 +289,7 @@ flowchart LR
 
 The Genie API accepts an `additional_context` field per message. You could inject: `"Only return data where tenant_id = 'X'"`.
 
-**Problem:** This is an LLM instruction, not a security boundary. Genie may or may not honor it. Explicitly documented: "Genie Spaces do not enforce a hard data boundary."
+**Problem:** This is an LLM instruction, not a security boundary. Genie may or may not honor it. Explicitly documented: ["Genie Spaces do not enforce a hard data boundary."](https://docs.google.com/document/d/15f98p8ygW9sjflSU6eMe-IdN8QL_g8bZvkQu1imNC2s/edit)
 
 **Assessment:** Useful as a UX hint (guides SQL generation). Not a security mechanism.
 
