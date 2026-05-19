@@ -1,6 +1,6 @@
 # Multi-Tenant Data Segregation for Databricks Genie
 
-## Problem Statement
+![Problem](https://img.shields.io/badge/Problem-Statement-red?style=for-the-badge)
 
 AirTies operates a multi-tenant Databricks workspace where all Unity Catalog tables contain a `tenant_id` column. Tenants and their sub-tenants (potentially hundreds) query data through Databricks Genie via an application layer.
 
@@ -14,18 +14,16 @@ The requirement is to guarantee that every Genie response only returns data belo
 
 ### Ruled-Out Approaches
 
-| Approach                                             | Why It Fails                                              |
-| ---------------------------------------------------- | --------------------------------------------------------- |
-| One service principal per tenant                     | Hundreds of sub-tenants make this unmanageable             |
-| One Genie room per tenant with pre-filtered views    | Does not scale with tenant volume                          |
-| Unity Catalog row filters with `current_user()`      | Single SP means all tenants share the same identity        |
-| Genie room instructions ("always filter by tenant_id") | Relies on LLM compliance -- not a security boundary     |
+| Approach                                                | Why It Fails                                           |
+| ------------------------------------------------------- | ------------------------------------------------------ |
+| One service principal per tenant                        | Hundreds of sub-tenants make this unmanageable         |
+| One Genie room per tenant with pre-filtered views       | Does not scale with tenant volume                      |
+| Unity Catalog row filters with `current_user()`         | Single SP means all tenants share the same identity    |
+| Genie room instructions ("always filter by tenant_id")  | Relies on LLM compliance -- not a security boundary    |
 
 ---
 
-## Research Sources
-
-This analysis draws from:
+![Sources](https://img.shields.io/badge/Research-Sources-grey?style=for-the-badge)
 
 - Databricks official documentation (AWS, Azure, GCP)
 - Josh Rosenberg, "Embedding Genie API for a Multi-Tenant Application" (Medium, March 2026)
@@ -38,7 +36,7 @@ This analysis draws from:
 
 ---
 
-## High-Level Architecture
+![Architecture](https://img.shields.io/badge/High--Level-Architecture-0078D4?style=for-the-badge)
 
 ```mermaid
 flowchart LR
@@ -53,9 +51,11 @@ The core question is: **how does the Application Layer establish tenant identity
 
 ---
 
-## Approaches Evaluated
+![Approaches](https://img.shields.io/badge/Approaches-Evaluated-blueviolet?style=for-the-badge)
 
-### Approach A: SP-per-Tenant + ABAC Row Filters (Databricks Recommended)
+---
+
+### ![A](https://img.shields.io/badge/A-SP--per--Tenant_+_ABAC-00A36C?style=for-the-badge) ![Recommended](https://img.shields.io/badge/Databricks-Recommended-gold?style=flat-square)
 
 This is the pattern recommended by Databricks engineering (Josh Rosenberg article, March 2026).
 
@@ -96,7 +96,7 @@ flowchart LR
 
 ---
 
-### Approach B: OBO OAuth + Row Filters + User Provisioning
+### ![B](https://img.shields.io/badge/B-OBO_OAuth_+_Row_Filters-0078D4?style=for-the-badge)
 
 ```mermaid
 flowchart LR
@@ -180,7 +180,7 @@ SET ROW FILTER governance.security.filter_by_tenant ON (ext_tenant_id);
 
 ---
 
-### Approach B2: Databricks App with Native OBO Token Forwarding + Row Filters
+### ![B2](https://img.shields.io/badge/B2-Databricks_App_+_Native_OBO-0078D4?style=for-the-badge) ![Simplest](https://img.shields.io/badge/Simplest-Implementation-green?style=flat-square)
 
 A variant of Approach B that eliminates custom OAuth plumbing by using Databricks Apps' built-in user authorization.
 
@@ -243,7 +243,7 @@ def handle_query(request):
 
 ---
 
-### Approach C: Session Variables + Row Filters (Single SP)
+### ![C](https://img.shields.io/badge/C-Session_Variables-orange?style=for-the-badge) ![Not Viable](https://img.shields.io/badge/Not_Viable-for_Genie-red?style=flat-square)
 
 ```mermaid
 flowchart LR
@@ -280,7 +280,7 @@ RETURN (tid = session.tenant_id);
 
 ---
 
-### Approach D: Genie `additional_context` Parameter
+### ![D](https://img.shields.io/badge/D-additional__context_Param-orange?style=for-the-badge) ![UX Only](https://img.shields.io/badge/UX_Only-Not_Security-red?style=flat-square)
 
 ```mermaid
 flowchart LR
@@ -300,9 +300,9 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 ---
 
-## Recommendation
+![Recommendation](https://img.shields.io/badge/Recommendation-Summary-00A36C?style=for-the-badge)
 
-### Primary: Approach A (SP-per-Tenant + ABAC)
+### ![Primary](https://img.shields.io/badge/Primary-Approach_A-00A36C?style=flat-square) SP-per-Tenant + ABAC
 
 If the SP count can be managed (and hundreds is manageable with automation):
 
@@ -310,7 +310,7 @@ If the SP count can be managed (and hundreds is manageable with automation):
 - GenierAILS provides it as infrastructure-as-code
 - Hardest security boundary with least custom code
 
-### Alternative: Approach B/B2 (OBO + Row Filters + User Provisioning)
+### ![Alternative](https://img.shields.io/badge/Alternative-Approach_B/B2-0078D4?style=flat-square) OBO + Row Filters + User Provisioning
 
 If tenant identities can be provisioned via SCIM/AIM:
 
@@ -319,27 +319,27 @@ If tenant identities can be provisioned via SCIM/AIM:
 - B (custom app with OBO) gives more flexibility if the app must live outside Databricks
 - Row filters with mapping table provide dynamic, maintainable isolation
 
-### Supplementary: Approach D (additional_context)
+### ![Supplementary](https://img.shields.io/badge/Supplementary-Approach_D-orange?style=flat-square) additional_context
 
 Regardless of the primary approach, use `additional_context` in Genie API calls to guide SQL generation toward tenant-relevant queries. This improves result quality but must never be relied on for security.
 
 ---
 
-## Decision Matrix
+![Matrix](https://img.shields.io/badge/Decision-Matrix-blueviolet?style=for-the-badge)
 
-| Criteria                        | A: SP+ABAC     | B: OBO+Filters | B2: DBX App+OBO | C: Session Vars | D: Context Param |
-| ------------------------------- | -------------- | --------------- | ---------------- | --------------- | ---------------- |
-| Hard security boundary          | Yes            | Yes             | Yes              | No              | No               |
-| Genie NL answers tenant-scoped  | Yes            | Yes             | Yes              | N/A             | No               |
-| Scales to hundreds of tenants   | With automation | Yes            | Yes              | N/A             | Yes              |
-| Custom code required            | Minimal        | Moderate        | Minimal          | Moderate        | Minimal          |
-| Databricks-recommended          | Yes            | Partially       | Yes              | No              | No               |
-| Works with Genie                | Yes            | Yes             | Yes              | No              | Partially        |
-| App can live outside Databricks | Yes            | Yes             | No               | Yes             | Yes              |
+| Criteria                        | A: SP+ABAC      | B: OBO+Filters | B2: DBX App+OBO | C: Session Vars | D: Context Param |
+| ------------------------------- | ---------------- | --------------- | ---------------- | --------------- | ---------------- |
+| Hard security boundary          | Yes              | Yes             | Yes              | No              | No               |
+| Genie NL answers tenant-scoped  | Yes              | Yes             | Yes              | N/A             | No               |
+| Scales to hundreds of tenants   | With automation  | Yes             | Yes              | N/A             | Yes              |
+| Custom code required            | Minimal          | Moderate        | Minimal          | Moderate        | Minimal          |
+| Databricks-recommended          | Yes              | Partially       | Yes              | No              | No               |
+| Works with Genie                | Yes              | Yes             | Yes              | No              | Partially        |
+| App can live outside Databricks | Yes              | Yes             | No               | Yes             | Yes              |
 
 ---
 
-## Next Steps
+![Next Steps](https://img.shields.io/badge/Next-Steps-blue?style=for-the-badge)
 
 1. **Validate SP scalability** -- Confirm whether AirTies can automate SP lifecycle for their tenant count. If yes, go with Approach A.
 2. **If not** -- Evaluate whether tenant users can be provisioned via SCIM/AIM for Approach B or B2.
@@ -350,7 +350,7 @@ Regardless of the primary approach, use `additional_context` in Genie API calls 
 
 ---
 
-## Key References
+![References](https://img.shields.io/badge/Key-References-grey?style=for-the-badge)
 
 - Josh Rosenberg, "Embedding Genie API for a Multi-Tenant Application" (Medium, March 2026)
 - Databricks Blog, "Access Genie Everywhere" -- OBO/U2M/M2M OAuth patterns
