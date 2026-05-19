@@ -38,11 +38,37 @@ This analysis draws from:
 
 ---
 
+## High-Level Architecture
+
+```mermaid
+flowchart LR
+    A[Tenant User] --> B[Application Layer]
+    B --> C[Genie API]
+    C --> D[SQL Warehouse]
+    D --> E["Unity Catalog\n+ Row Filters"]
+    E --> F[Tables with\ntenant_id]
+```
+
+The core question is: **how does the Application Layer establish tenant identity so that Unity Catalog row filters can enforce isolation?**
+
+---
+
 ## Approaches Evaluated
 
 ### Approach A: SP-per-Tenant + ABAC Row Filters (Databricks Recommended)
 
 This is the pattern recommended by Databricks engineering (Josh Rosenberg article, March 2026).
+
+```mermaid
+flowchart LR
+    T1[Tenant A] --> App
+    T2[Tenant B] --> App
+    App -->|"SP-A token\n(M2M OAuth)"| Genie[Genie API]
+    App -->|"SP-B token\n(M2M OAuth)"| Genie
+    Genie --> WH[SQL Warehouse]
+    WH --> ABAC["ABAC Row Filters\ncurrent_user() = SP"]
+    ABAC --> Tables[(Tables)]
+```
 
 **How it works:**
 
@@ -71,6 +97,17 @@ This is the pattern recommended by Databricks engineering (Josh Rosenberg articl
 ---
 
 ### Approach B: OBO OAuth + Row Filters + User Provisioning
+
+```mermaid
+flowchart LR
+    T[Tenant User] -->|Authenticates| App[Custom App]
+    App -->|"OBO token exchange\n(per-user token)"| Genie[Genie API]
+    Genie --> WH[SQL Warehouse]
+    WH --> RF["Row Filters\nsession_user() → mapping table"]
+    RF --> Tables[(Tables)]
+
+    IdP[IdP / SCIM] -.->|provisions| DBX[Databricks Users]
+```
 
 **How it works:**
 
@@ -147,6 +184,15 @@ SET ROW FILTER governance.security.filter_by_tenant ON (ext_tenant_id);
 
 A variant of Approach B that eliminates custom OAuth plumbing by using Databricks Apps' built-in user authorization.
 
+```mermaid
+flowchart LR
+    T[Tenant User] -->|SSO login| DBA["Databricks App\n(reads x-forwarded-access-token)"]
+    DBA -->|"User's own token\n(auto-forwarded)"| Genie[Genie API]
+    Genie --> WH[SQL Warehouse]
+    WH --> RF["Row Filters\nsession_user()"]
+    RF --> Tables[(Tables)]
+```
+
 **How it works:**
 
 - Deploy the tenant-facing application as a **Databricks App**
@@ -199,6 +245,17 @@ def handle_query(request):
 
 ### Approach C: Session Variables + Row Filters (Single SP)
 
+```mermaid
+flowchart LR
+    T[Tenant User] --> App
+    App -->|"Single SP token"| WH["SQL Warehouse\nSET VAR tenant_id = 'X'"]
+    WH --> RF["Row Filters\nreads session.tenant_id"]
+    RF --> Tables[(Tables)]
+    App -.-x|"No session var\ninjection"| Genie[Genie API]
+
+    style Genie stroke-dasharray: 5 5,color:#999
+```
+
 **How it works:**
 
 - Single SP authenticates all requests
@@ -224,6 +281,16 @@ RETURN (tid = session.tenant_id);
 ---
 
 ### Approach D: Genie `additional_context` Parameter
+
+```mermaid
+flowchart LR
+    T[Tenant User] --> App
+    App -->|"Single SP +\nadditional_context:\nfilter by tenant_id=X"| Genie[Genie API]
+    Genie -->|"LLM may or may\nnot honor filter"| WH[SQL Warehouse]
+    WH --> Tables[(Tables\nNO row filters)]
+
+    style Genie fill:#fff3cd
+```
 
 The Genie API accepts an `additional_context` field per message. You could inject: `"Only return data where tenant_id = 'X'"`.
 
