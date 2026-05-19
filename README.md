@@ -9,7 +9,7 @@
   - [A: SP-per-Tenant + ABAC (Recommended)](#approach-a)
   - [B: OBO OAuth + Row Filters](#approach-b)
   - [B2: Databricks App + Native OBO (Simplest)](#approach-b2)
-  - [C: additional_context Param (UX Only)](#approach-c)
+  - [C: additional_context Param (Hint Only)](#approach-c)
 - [Decision Matrix](#decision-matrix)
 - [Next Steps](#next-steps)
 - [Key References](#key-references)
@@ -275,7 +275,7 @@ def handle_query(request):
 
 <a id="approach-c"></a>
 
-### ![C](https://img.shields.io/badge/C-additional__context_Param-orange?style=for-the-badge) ![UX Only](https://img.shields.io/badge/UX_Only-Not_Security-red?style=flat-square)
+### ![C](https://img.shields.io/badge/C-additional__context_Param-orange?style=for-the-badge) ![Hint Only](https://img.shields.io/badge/Hint_Only-Not_Security-red?style=flat-square)
 
 ```mermaid
 flowchart LR
@@ -291,7 +291,7 @@ The Genie API accepts an `additional_context` field per message. You could injec
 
 **Problem:** This is an LLM instruction, not a security boundary. Genie may or may not honor it. Explicitly documented: ["Genie Spaces do not enforce a hard data boundary."](https://docs.google.com/document/d/15f98p8ygW9sjflSU6eMe-IdN8QL_g8bZvkQu1imNC2s/edit)
 
-**Assessment:** Useful as a UX hint (guides SQL generation). Not a security mechanism.
+**Assessment:** Useful as a programmatic hint to guide Genie's SQL generation. Not a security mechanism.
 
 ---
 
